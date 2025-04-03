@@ -1,4 +1,5 @@
 import telebot
+from telebot import types
 import config
 import random
 
@@ -7,9 +8,12 @@ bot = telebot.TeleBot(config.TG_API_TOKEN)
 user_equations = {}
 
 
-@bot.message_handler(commands=["start"])
-def send_welcome(message):
-    bot.send_message(message.chat.id, "Привет чем займемся?")
+@bot.message_handler(commands=['start']) #создаем команду
+def start(message):
+    markup = types.InlineKeyboardMarkup()
+    button1 = types.InlineKeyboardButton("GitHub", url='https://github.com/DmitriyExpert')
+    markup.add(button1)
+    bot.send_message(message.chat.id, "Привет, {0.first_name}! Я тестовый бот! А вот github моего создателя!".format(message.from_user), reply_markup=markup)
 
 
 @bot.message_handler(commands=["help"])
@@ -23,7 +27,52 @@ def send_welcome(message):
 
 @bot.message_handler(commands=["rnd"])
 def send_number(message):
-    bot.reply_to(message, random.randint(0, 1000000))
+    chat_id = message.chat.id
+    user_equations[chat_id] = None
+    bot.send_message(
+        message.chat.id,
+        "Введите диапазон значений через пробел (пример: 1 100)",
+    )
+    bot.register_next_step_handler(message, get_random)
+
+def get_random(message):
+    chat_id = message.chat.id
+    equation = message.text
+    user_equations[chat_id] = equation.lower()
+    if equation.lower() == "stop":
+        return bot.send_message(
+            chat_id,
+            "Вы вышли из режима вывода рандомных чисел",
+        )
+    if equation.count(' ') == 0 and equation[-1] != " ":
+        bot.send_message(
+            chat_id,
+            "Числа записаны не через пробел, или последний символ равен пробелу",
+        )
+        bot.send_message(
+            chat_id,
+            "Введите еще диапазон или напишите stop для завершения ввода"
+        )
+        return bot.register_next_step_handler(message, get_random)
+    first_num = equation[:equation.index(" ")]
+    second_num = equation[equation.index(" ") + 1:]
+    if first_num.isdigit() and second_num.isdigit():
+        random_number = random.randint(int(first_num), int(second_num))
+        bot.send_message(
+            chat_id,
+            random_number,
+        )
+        bot.send_message(
+            chat_id,
+            "Введите еще диапазон или напишите stop для завершения ввода"
+        )
+        return bot.register_next_step_handler(message, get_random)
+    else:
+        bot.send_message(
+            chat_id,
+            "Какое то из значений не является числом, введите диапазон еще раз"
+        )
+        return bot.register_next_step_handler(message, get_random)
 
 
 @bot.message_handler(commands=["math"])
